@@ -11,14 +11,25 @@ mod erc20 {
     #[ink(storage)]
     pub struct Erc20 {
         /// Stores a single `bool` value on the storage.
-        value: bool,
+        total_supply: Balance,
+        balances: ink_storage::collections::HashMap<AccountId, Balance>,
     }
 
     impl Erc20 {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
-        pub fn new(init_value: bool) -> Self {
-            Self { value: init_value }
+        pub fn new(init_supply: Balance) -> Self {
+            let mut balances = ink_storage::collections::HashMap::new();
+            balances.insert(Self::env().caller(), initial_supply);
+            Self {
+                total_supply: initial_supply,
+                balances
+            }
+        }
+
+        #[ink(message)]
+        pub fn total_supply(&self) -> Balance{
+            self.total_supply
         }
 
         /// Constructor that initializes the `bool` value to `false`.
@@ -42,6 +53,9 @@ mod erc20 {
         pub fn get(&self) -> bool {
             self.value
         }
+
+        fn transfer_from_to(&mut self, from: AccountId, to: AccountId, value: Balance) -> bool {
+            if ba}
     }
 
     /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
