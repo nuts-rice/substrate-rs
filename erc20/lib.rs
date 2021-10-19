@@ -15,14 +15,23 @@ mod erc20 {
         balances: ink_storage::collections::HashMap<AccountId, Balance>,
     }
 
+    #[ink(event)]
+    pub struct Transfer {
+        #[ink(topic)]
+        from: Option<AccountId>,
+        #[ink(topic)]
+        to: Option<AccountId>,
+        value: Balance,
+    }
+
     impl Erc20 {
         /// Constructor that initializes the `bool` value to the given `init_value`.
         #[ink(constructor)]
         pub fn new(init_supply: Balance) -> Self {
             let mut balances = ink_storage::collections::HashMap::new();
-            balances.insert(Self::env().caller(), initial_supply);
+            balances.insert(Self::env().caller(), init_supply);
             Self {
-                total_supply: initial_supply,
+                total_supply: init_supply,
                 balances
             }
         }
@@ -32,31 +41,51 @@ mod erc20 {
             self.total_supply
         }
 
+        #[ink(message)]
+        pub fn balance_of(&self, owner: AccountId) -> Balance{
+            self.balance_of_or_zero(&owner)
+        }
+
+        #[ink(message)]
+        pub fn transfer(&mut self, to: AccountId, value: Balance) -> bool {
+            self.transfer_from_to(self.env().caller(), to, value)
+        }
+
+        fn transfer_from_to(&mut self, from: AccountId, to: AccountId, value: Balance) -> bool {
+            let from_balance = self.balance_of_or_zero(&from);
+            if from_balance < value {
+                return false
+            }
+            self.balances.insert(from, from_balance - value);
+
+            let to_balance = self.balance_of_or_zero(&to);
+            self.balances.insert(to, to_balance + value);
+
+            self.env().emit_event(Transfer{
+                from: Some(from),
+                to: Some(to),
+                value,
+            });
+
+
+            true
+        }
+
+        fn balance_of_or_zero(&self, owner: &AccountId) -> Balance{
+            *self.balances.get(owner).unwrap_or(&0)
+        }
+    }
         /// Constructor that initializes the `bool` value to `false`.
         ///
         /// Constructors can delegate to other constructors.
-        #[ink(constructor)]
-        pub fn default() -> Self {
-            Self::new(Default::default())
-        }
 
         /// A message that can be called on instantiated contracts.
         /// This one flips the value of the stored `bool` from `true`
         /// to `false` and vice versa.
-        #[ink(message)]
-        pub fn flip(&mut self) {
-            self.value = !self.value;
-        }
 
         /// Simply returns the current value of our `bool`.
-        #[ink(message)]
-        pub fn get(&self) -> bool {
-            self.value
-        }
 
-        fn transfer_from_to(&mut self, from: AccountId, to: AccountId, value: Balance) -> bool {
-            if ba}
-    }
+
 
     /// Unit tests in Rust are normally defined within such a `#[cfg(test)]`
     /// module and test functions are marked with a `#[test]` attribute.
@@ -71,18 +100,18 @@ mod erc20 {
 
         /// We test if the default constructor does its job.
         #[ink::test]
-        fn default_works() {
-            let erc20 = Erc20::default();
-            assert_eq!(erc20.get(), false);
+        fn new_works() {
+            let contract = Erc20::default(777);
+            assert_eq!(erc20.total_supply(), 777);
         }
 
         /// We test a simple use case of our contract.
         #[ink::test]
-        fn it_works() {
-            let mut erc20 = Erc20::new(false);
-            assert_eq!(erc20.get(), false);
-            erc20.flip();
-            assert_eq!(erc20.get(), true);
+        fn balance_works() {
+            let mut erc20 = Erc20::new(100);
+            assert_eq!(erc20.total_supply, 100);
+            assert_eq!(erc20.balance_of(AccountId::from([0x1; 32])), 100);
+            assert_eq!(erc20.balance_of(AccountId::from([0x0, 32])), 0);
         }
     }
 }
